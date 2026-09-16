@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Y13 Luxury Smart Watch — Order Now | Payment on Delivery</title>
 <meta name="description" content="The Y13 Luxury Smart Tracker Smartwatch with free earbud. 3 straps included, free nationwide delivery, payment on delivery.">
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '4639093396412135');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=4639093396412135&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 <style>
   :root {
     --navy: #001F3F;
@@ -384,9 +401,9 @@
     <input type="hidden" name="from_name" value="Y13 Smart Watch Landing Page">
     <input type="hidden" name="redirect" id="redirectField" value="thank-you.html">
 
-    <input type="text" name="Full Name" placeholder="Full Name*" required>
-    <input type="tel" name="Phone" placeholder="Phone*" required>
-    <input type="text" name="Address" placeholder="Address*" required>
+    <input type="text" name="Full Name" class="cart-field" placeholder="Full Name*" required>
+    <input type="tel" name="Phone" class="cart-field" placeholder="Phone*" required>
+    <input type="text" name="Address" class="cart-field" placeholder="Address*" required>
     <div class="row-50">
       <input type="text" name="Town" placeholder="Town*" required>
       <input type="text" name="State" placeholder="State*" required>
@@ -404,11 +421,45 @@
 <script>
   const form = document.getElementById('orderForm');
   const errorMsg = document.getElementById('form-error');
+  const cartFields = Array.from(document.querySelectorAll('.cart-field'));
+  const PRODUCT_NAME = 'Y13 Smart Watch';
+
+  let orderCompleted = false;
+  let cartAbandonTracked = false;
 
   // Build an absolute URL for the redirect field, in case the browser
   // ever falls back to a plain (non-JS) form submission.
   document.getElementById('redirectField').value =
     window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'thank-you.html';
+
+  function cartFieldsFilled() {
+    return cartFields.every(el => el.value.trim().length > 0);
+  }
+
+  // Fires once per visit, only if Name + Phone + Address are filled and
+  // the order was never successfully submitted. Sends both a Pixel event
+  // and a direct beacon-style image request as a reliability fallback,
+  // since script-based pixel calls can be cut off during page unload.
+  function trackAbandonedCart(reason) {
+    if (cartAbandonTracked || orderCompleted) return;
+    if (!cartFieldsFilled()) return;
+    cartAbandonTracked = true;
+
+    if (typeof fbq === 'function') {
+      fbq('trackCustom', 'AbandonedCart', { content_name: PRODUCT_NAME, reason: reason });
+    }
+    try {
+      const img = new Image();
+      img.src = 'https://www.facebook.com/tr?id=4639093396412135&ev=AbandonedCart&noscript=1'
+        + '&cd[content_name]=' + encodeURIComponent(PRODUCT_NAME)
+        + '&cd[reason]=' + encodeURIComponent(reason);
+    } catch (e) { /* ignore */ }
+  }
+
+  window.addEventListener('pagehide', () => trackAbandonedCart('left_page'));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') trackAbandonedCart('left_page');
+  });
 
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -425,15 +476,18 @@
       });
       const data = await res.json();
       if (data.success) {
+        orderCompleted = true;
         window.location.href = 'thank-you.html';
         return;
       }
       // Show the real reason it failed, instead of a generic message.
       errorMsg.textContent = data.message || 'Submission was rejected. Please try again or contact us directly.';
       errorMsg.style.display = 'block';
+      trackAbandonedCart('submission_failed');
     } catch (err) {
       errorMsg.textContent = 'Could not reach the order service. Please check your connection and try again.';
       errorMsg.style.display = 'block';
+      trackAbandonedCart('network_error');
     }
     btn.disabled = false;
     btn.textContent = originalText;
