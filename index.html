@@ -382,6 +382,7 @@
     <input type="hidden" name="access_key" value="cf1cee92-5c74-44ae-927c-df049744a7cc">
     <input type="hidden" name="subject" value="New Y13 Smart Watch Order">
     <input type="hidden" name="from_name" value="Y13 Smart Watch Landing Page">
+    <input type="hidden" name="redirect" id="redirectField" value="thank-you.html">
 
     <input type="text" name="Full Name" placeholder="Full Name*" required>
     <input type="tel" name="Phone" placeholder="Phone*" required>
@@ -394,6 +395,7 @@
   </form>
 
   <p id="form-success">Thank you for taking the time to complete this form. We'll be in touch shortly!</p>
+  <p id="form-error" style="display:none; color:#ff6b6b; text-align:center; margin-top:16px;"></p>
 
   <p class="free-delivery-note">(Free Delivery Nationwide)</p>
   <p class="final-price-note">Failed delivery leads to great loss for us. Please only order if you are available and ready to pay.<br><br>PRICE: <strong>₦44,000</strong></p>
@@ -401,9 +403,16 @@
 
 <script>
   const form = document.getElementById('orderForm');
-  const successMsg = document.getElementById('form-success');
+  const errorMsg = document.getElementById('form-error');
+
+  // Build an absolute URL for the redirect field, in case the browser
+  // ever falls back to a plain (non-JS) form submission.
+  document.getElementById('redirectField').value =
+    window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'thank-you.html';
+
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
+    errorMsg.style.display = 'none';
     const btn = form.querySelector('button[type="submit"]');
     const originalText = btn.textContent;
     btn.disabled = true;
@@ -416,18 +425,18 @@
       });
       const data = await res.json();
       if (data.success) {
-        form.style.display = 'none';
-        successMsg.style.display = 'block';
-      } else {
-        alert('Something went wrong. Please try again or call us directly.');
-        btn.disabled = false;
-        btn.textContent = originalText;
+        window.location.href = 'thank-you.html';
+        return;
       }
+      // Show the real reason it failed, instead of a generic message.
+      errorMsg.textContent = data.message || 'Submission was rejected. Please try again or contact us directly.';
+      errorMsg.style.display = 'block';
     } catch (err) {
-      alert('Something went wrong. Please check your connection and try again.');
-      btn.disabled = false;
-      btn.textContent = originalText;
+      errorMsg.textContent = 'Could not reach the order service. Please check your connection and try again.';
+      errorMsg.style.display = 'block';
     }
+    btn.disabled = false;
+    btn.textContent = originalText;
   });
 </script>
 
