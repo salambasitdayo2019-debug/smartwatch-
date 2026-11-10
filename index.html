@@ -206,7 +206,10 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
   }
   .order-form .row-50 { display: flex; gap: 12px; }
   .order-form .row-50 > * { flex: 1; }
-  .order-form input {
+  .order-form input[type="text"],
+  .order-form input[type="tel"],
+  .order-form input[type="date"],
+  .order-form select {
     background: #232323;
     color: #fff;
     border: 1px solid #3a3a3a;
@@ -217,6 +220,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     font-family: inherit;
   }
   .order-form input::placeholder { color: #aaa; }
+  .order-form input[type="date"] { color-scheme: dark; }
   .order-form button {
     background: #EEC66A;
     color: #0D0D0D;
@@ -229,6 +233,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     margin-top: 6px;
   }
   .order-form button:hover { filter: brightness(0.95); }
+  .order-form button:disabled { opacity: 0.7; cursor: not-allowed; }
   .free-delivery-note { text-align: center; margin-top: 14px; font-size: 15px; }
   .final-price-note {
     text-align: center;
@@ -243,6 +248,105 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     font-weight: 700;
     margin-top: 16px;
     font-size: 17px;
+  }
+
+  /* ---------- Package + delivery date ---------- */
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scroll-margin-top: 20px;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    padding: 4px;
+    transition: border-color .2s, background .2s;
+  }
+  .choices.has-error {
+    border-color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.07);
+  }
+  .choice-label {
+    font-weight: 700;
+    font-size: 15px;
+    color: #EEC66A;
+    margin: 4px 0 0;
+  }
+  .pkg-list { display: flex; flex-direction: column; gap: 10px; }
+  .pkg { display: block; cursor: pointer; position: relative; }
+  .pkg input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+  .pkg-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #232323;
+    border: 2px solid #3a3a3a;
+    border-radius: 8px;
+    padding: 14px;
+    font-weight: 700;
+    font-size: 15px;
+    transition: border-color .15s, background .15s;
+  }
+  .pkg-body .pkg-name small {
+    display: block;
+    font-weight: 400;
+    color: #aaa;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .pkg-body .pkg-price { color: #FFE100; font-size: 17px; white-space: nowrap; }
+  .pkg input:checked + .pkg-body {
+    border-color: #EEC66A;
+    background: #2e2a1a;
+  }
+  .pkg input:focus-visible + .pkg-body { outline: 2px solid #fff; }
+  .pkg .badge {
+    position: absolute;
+    top: -9px;
+    right: 12px;
+    background: #36E01F;
+    color: #000;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    z-index: 1;
+  }
+
+  .specific-date-box {
+    background: #1a1a1a;
+    border: 1px solid #EEC66A;
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .specific-date-box[hidden] { display: none; }
+  .specific-date-box label {
+    display: block;
+    font-size: 14px;
+    color: #EEC66A;
+    margin-bottom: 8px;
+  }
+
+  .choice-error {
+    display: none;
+    color: #ff6b6b;
+    font-weight: 700;
+    font-size: 14px;
+    text-align: center;
+    margin: 0;
+  }
+  .choice-error.show { display: block; }
+  .order-total {
+    text-align: center;
+    color: #FFE100;
+    font-weight: 700;
+    font-size: 18px;
+    margin: 0;
   }
 </style>
 </head>
@@ -405,15 +509,65 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
   <h2>Fill the form below to place your order</h2>
   <p class="order-note">
     Failed delivery leads to great loss for us.<br>
-    Please Only order if you would be able to pay!<br><br>
-    <strong>PRICE: ₦44,000</strong>
+    Please Only order if you would be able to pay!
   </p>
 
-  <form class="order-form" id="orderForm" action="https://api.web3forms.com/submit" method="POST">
+  <form class="order-form" id="orderForm" action="https://api.web3forms.com/submit" method="POST" novalidate>
     <input type="hidden" name="access_key" value="cf1cee92-5c74-44ae-927c-df049744a7cc">
     <input type="hidden" name="subject" value="New Y13 Smart Watch Order">
     <input type="hidden" name="from_name" value="Y13 Smart Watch Landing Page">
     <input type="hidden" name="redirect" id="redirectField" value="thank-you.html">
+
+    <!-- Values that reach your CRM / email -->
+    <input type="hidden" name="Package" id="packageField">
+    <input type="hidden" name="Quantity" id="quantityField">
+    <input type="hidden" name="Total Price" id="totalPriceField">
+    <input type="hidden" name="Delivery Date" id="deliveryDateFinal">
+
+    <!-- PACKAGE + DELIVERY DATE (required, form scrolls here if missing) -->
+    <div class="choices" id="choices">
+      <p class="choice-label">1. Choose your package*</p>
+      <div class="pkg-list" id="pkgList">
+        <label class="pkg">
+          <input type="radio" name="package_choice" value="1">
+          <span class="pkg-body">
+            <span class="pkg-name">1 Smartwatch + Earbud</span>
+            <span class="pkg-price">₦44,000</span>
+          </span>
+        </label>
+        <label class="pkg">
+          <span class="badge">POPULAR</span>
+          <input type="radio" name="package_choice" value="2">
+          <span class="pkg-body">
+            <span class="pkg-name">2 Smartwatches + 2 Earbuds</span>
+            <span class="pkg-price">₦84,000</span>
+          </span>
+        </label>
+        <label class="pkg">
+          <span class="badge">BEST VALUE</span>
+          <input type="radio" name="package_choice" value="3">
+          <span class="pkg-body">
+            <span class="pkg-name">3 Smartwatches + 3 Earbuds</span>
+            <span class="pkg-price">₦128,000</span>
+          </span>
+        </label>
+      </div>
+
+      <p class="choice-label">2. When do you want it delivered?*</p>
+      <select name="Delivery Option" id="deliveryOption">
+        <option value="" disabled selected>Delivery Date*</option>
+        <option value="Today">Today</option>
+        <option value="Tomorrow">Tomorrow</option>
+        <option value="Specific date">Specific date</option>
+      </select>
+
+      <div class="specific-date-box" id="specificDateBox" hidden>
+        <label for="specificDate">Type when you want your order delivered*</label>
+        <input type="text" id="specificDate" name="Specific Delivery Date" maxlength="100" placeholder="e.g. Next week Friday, 25th December, Next month" autocomplete="off" disabled>
+      </div>
+
+      <p class="choice-error" id="choiceError" role="alert"></p>
+    </div>
 
     <input type="text" name="Full Name" class="cart-field" placeholder="Full Name*" required>
     <input type="tel" name="Phone" class="cart-field" placeholder="Phone*" required>
@@ -422,55 +576,168 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
       <input type="text" name="Town" placeholder="Town*" required>
       <input type="text" name="State" placeholder="State*" required>
     </div>
-    <button type="submit">ORDER NOW</button>
+
+    <p class="order-total" id="orderTotal"></p>
+    <button type="submit" id="submitBtn">ORDER NOW</button>
   </form>
 
   <p id="form-success">Thank you for taking the time to complete this form. We'll be in touch shortly!</p>
   <p id="form-error" style="display:none; color:#ff6b6b; text-align:center; margin-top:16px;"></p>
 
   <p class="free-delivery-note">(Free Delivery Nationwide)</p>
-  <p class="final-price-note">Failed delivery leads to great loss for us. Please only order if you are available and ready to pay.<br><br>PRICE: <strong>₦44,000</strong></p>
+  <p class="final-price-note">Failed delivery leads to great loss for us. Please only order if you are available and ready to pay.</p>
 </section>
 
 <script>
   const form = document.getElementById('orderForm');
   const errorMsg = document.getElementById('form-error');
   const cartFields = Array.from(document.querySelectorAll('.cart-field'));
+  const submitBtn = document.getElementById('submitBtn');
   const PRODUCT_NAME = 'Y13 Smart Watch';
 
-  let orderCompleted = false;
-  let cartAbandonTracked = false;
+  // ---------- Packages ----------
+  const PACKAGES = {
+    '1': { label: '1 Smartwatch + Earbud',       qty: 1, price: 44000 },
+    '2': { label: '2 Smartwatches + 2 Earbuds',  qty: 2, price: 84000 },
+    '3': { label: '3 Smartwatches + 3 Earbuds',  qty: 3, price: 124000 }
+  };
+  const naira = n => '₦' + n.toLocaleString('en-US');
+
+  const choicesBox = document.getElementById('choices');
+  const choiceError = document.getElementById('choiceError');
+  const pkgRadios = Array.from(document.querySelectorAll('input[name="package_choice"]'));
+  const packageField = document.getElementById('packageField');
+  const quantityField = document.getElementById('quantityField');
+  const totalPriceField = document.getElementById('totalPriceField');
+  const orderTotal = document.getElementById('orderTotal');
+
+  const deliveryOption = document.getElementById('deliveryOption');
+  const specificBox = document.getElementById('specificDateBox');
+  const specificDate = document.getElementById('specificDate');
+  const deliveryFinal = document.getElementById('deliveryDateFinal');
+
+  function selectedPackage() {
+    const r = pkgRadios.find(x => x.checked);
+    return r ? PACKAGES[r.value] : null;
+  }
+
+  function toISO(d) {
+    const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return z.toISOString().slice(0, 10);
+  }
+  function prettyDate(d) {
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function resolveDeliveryDate() {
+    const now = new Date();
+    if (deliveryOption.value === 'Today') return prettyDate(now);
+    if (deliveryOption.value === 'Tomorrow') {
+      const t = new Date(now); t.setDate(t.getDate() + 1);
+      return prettyDate(t);
+    }
+    if (deliveryOption.value === 'Specific date') {
+      return specificDate.value.trim();   // exactly what the customer typed
+    }
+    return '';
+  }
+
+  function updatePackageUI() {
+    const pkg = selectedPackage();
+    if (pkg) {
+      packageField.value = pkg.label;
+      quantityField.value = pkg.qty;
+      totalPriceField.value = naira(pkg.price);
+      orderTotal.textContent = 'Total: ' + naira(pkg.price) + ' (pay on delivery)';
+      submitBtn.textContent = 'ORDER NOW — ' + naira(pkg.price);
+    } else {
+      packageField.value = '';
+      quantityField.value = '';
+      totalPriceField.value = '';
+      orderTotal.textContent = '';
+      submitBtn.textContent = 'ORDER NOW';
+    }
+  }
+
+  function clearChoiceError() {
+    choicesBox.classList.remove('has-error');
+    choiceError.classList.remove('show');
+    choiceError.textContent = '';
+  }
+
+  pkgRadios.forEach(r => r.addEventListener('change', () => { updatePackageUI(); clearChoiceError(); }));
+
+  deliveryOption.addEventListener('change', () => {
+    const isSpecific = deliveryOption.value === 'Specific date';
+    specificBox.hidden = !isSpecific;
+    specificDate.disabled = !isSpecific;   // disabled fields aren't submitted
+    specificDate.required = isSpecific;
+    if (!isSpecific) specificDate.value = '';
+    clearChoiceError();
+  });
+  specificDate.addEventListener('input', clearChoiceError);
+
+  // Sends the customer back up to the package / delivery block
+  function goToChoices(message) {
+    choicesBox.classList.add('has-error');
+    choiceError.textContent = message;
+    choiceError.classList.add('show');
+    choicesBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   // Build an absolute URL for the redirect field, in case the browser
   // ever falls back to a plain (non-JS) form submission.
   document.getElementById('redirectField').value =
     window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'thank-you.html';
 
+  // ---------- Abandoned cart ----------
+  let orderCompleted = false;
+  let cartAbandonTracked = false;
+
   function cartFieldsFilled() {
     return cartFields.every(el => el.value.trim().length > 0);
   }
 
   // Fires once per visit, only if Name + Phone + Address are filled and
-  // the order was never successfully submitted. Sends both a Facebook
-  // Pixel event and a TikTok Pixel event, plus a direct beacon-style
-  // image request to Facebook as a reliability fallback, since
-  // script-based pixel calls can be cut off during page unload.
+  // the order was never successfully submitted. Sends a Facebook Pixel
+  // event and a TikTok Pixel event (now including package, value and
+  // delivery choice), plus a direct image beacon to Facebook as a
+  // reliability fallback, since script-based pixel calls can be cut off
+  // during page unload.
   function trackAbandonedCart(reason) {
     if (cartAbandonTracked || orderCompleted) return;
     if (!cartFieldsFilled()) return;
     cartAbandonTracked = true;
 
+    const pkg = selectedPackage();
+    const data = {
+      content_name: PRODUCT_NAME,
+      reason: reason,
+      package: pkg ? pkg.label : 'not_selected',
+      quantity: pkg ? pkg.qty : 0,
+      value: pkg ? pkg.price : 0,
+      currency: 'NGN',
+      delivery_option: deliveryOption.value || 'not_selected',
+      delivery_date: resolveDeliveryDate() || 'not_selected'
+    };
+
     if (typeof fbq === 'function') {
-      fbq('trackCustom', 'AbandonedCart', { content_name: PRODUCT_NAME, reason: reason });
+      fbq('trackCustom', 'AbandonedCart', data);
     }
     if (typeof ttq !== 'undefined' && typeof ttq.track === 'function') {
-      ttq.track('AbandonedCart', { content_name: PRODUCT_NAME, reason: reason });
+      ttq.track('AbandonedCart', data);
     }
     try {
       const img = new Image();
       img.src = 'https://www.facebook.com/tr?id=4639093396412135&ev=AbandonedCart&noscript=1'
-        + '&cd[content_name]=' + encodeURIComponent(PRODUCT_NAME)
-        + '&cd[reason]=' + encodeURIComponent(reason);
+        + '&cd[content_name]=' + encodeURIComponent(data.content_name)
+        + '&cd[reason]=' + encodeURIComponent(data.reason)
+        + '&cd[package]=' + encodeURIComponent(data.package)
+        + '&cd[quantity]=' + encodeURIComponent(data.quantity)
+        + '&cd[value]=' + encodeURIComponent(data.value)
+        + '&cd[currency]=NGN'
+        + '&cd[delivery_option]=' + encodeURIComponent(data.delivery_option)
+        + '&cd[delivery_date]=' + encodeURIComponent(data.delivery_date);
     } catch (e) { /* ignore */ }
   }
 
@@ -479,18 +746,46 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     if (document.visibilityState === 'hidden') trackAbandonedCart('left_page');
   });
 
+  // ---------- Submit ----------
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     errorMsg.style.display = 'none';
-    const btn = form.querySelector('button[type="submit"]');
+
+    // 1) Package + delivery date are required. If missing, do NOT submit,
+    //    take the customer straight to that part of the form.
+    const missing = [];
+    if (!selectedPackage()) missing.push('a package');
+    if (!deliveryOption.value) {
+      missing.push('a delivery date');
+    } else if (deliveryOption.value === 'Specific date' && !specificDate.value.trim()) {
+      missing.push('your specific delivery date');
+    }
+    if (missing.length) {
+      goToChoices('Please select ' + missing.join(' and ') + ' to continue.');
+      return;
+    }
+
+    // 2) Remaining fields (name, phone, address, town, state)
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    const btn = submitBtn;
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Sending...';
+
+    updatePackageUI();
+    deliveryFinal.value = resolveDeliveryDate();
+
     try {
+      const fd = new FormData(form);
+      fd.delete('package_choice');   // Package / Quantity / Total Price already sent in clean fields
       const res = await fetch(form.action, {
         method: 'POST',
         headers: { 'Accept': 'application/json' },
-        body: new FormData(form)
+        body: fd
       });
       const data = await res.json();
       if (data.success) {
